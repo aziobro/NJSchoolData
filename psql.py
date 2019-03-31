@@ -1,0 +1,5 @@
+PGHOST='postgres'
+PGPORT='5432'
+PGDATABASE='NJData'
+PGUSER='NJdatauser'
+PGPASSWORD='NJS3cr3tp@ssw0rd'

@@ -1,0 +1,36 @@
+version: "3"
+services:
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    networks:
+      - netlcl
+  python-mdbtools:
+   image: ziobro/python-mdbtools:latest
+   command: "sleep 5d"
+   volumes:
+     - ./:/home/drew/
+   networks:
+     - netlcl
+ 
+  postgres:
+    image: postgres
+    restart: always
+    volumes:
+      - postgresdata:/var/lib/postgresql/data
+#    tmpfs:
+#      - /var/lib/postgresql/data
+    environment: 
+      POSTGRES_PASSWORD: NJS3cr3tp@ssw0rd
+      POSTGRES_USER: NJdatauser
+      POSTGRES_DB: NJData
+    networks:
+      - netlcl    
+ 
+ 
+networks:
+  netlcl:
+volumes:
+  postgresdata:
