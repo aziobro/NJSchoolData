@@ -12,7 +12,7 @@ import numpy as np
 import psql as creds
 import pandas.io.sql as psql
 
-from StringIO import StringIO
+import io
 
 dblist = pd.read_csv("NJDataUrls.txt")
 
@@ -34,8 +34,8 @@ for index,row in dblist.iterrows():
     print('Skipping download of {}'.format(name))
   else: 
     print('Beginning file download of {} with wget module'.format(name))
-    filename = wget.download(row['url'],row['file']) 
-    print('finishing file download with wget module')
+    filename = wget.download(row['url'],out=row['file']) 
+    print('finishing file download with wget module {}'.format(filename) )
     
     
 #Open postgresDatabase
@@ -46,61 +46,31 @@ conn=psycopg2.connect(conn_string)
 print("Connected!")    
     
 
-##mdb-schema -N Y1718 database postgres # Pipe to postgres?
-
-#List all tables one at a table
-##mdb-tables -1 database | xargs mdb-export -I postgres -N Y1718 database  #pipe to postgres
-
-
 
 cur = conn.cursor()
-#DATABASE = sys.argv[1]
 for index,row in dblist.iterrows():
   exists = os.path.isfile(row['file'])
   name=row['file']
-  pre="-Ny" + name[:2] + name[3:5]
-  print(pre)
+  pre="-N" + name[:5] 
   if exists:
     conn.autocommit=True
     print('Read and load Schema of {}'.format(name))
-    cur.execute("CREATE SCHEMA y" +name[:2] + name[3:5] +";")
+    cur.execute("DROP SCHEMA IF EXISTS "+ name[:5]+" CASCADE") #Remove Schema and Data before Adding
+    cur.execute("CREATE SCHEMA " + name[:5] + ";")
     schema=subprocess.check_output(["mdb-schema","--no-indexes","--no-relations",pre, name, "postgres"])
     cur.execute(schema)
     # Dump data into database
-    dbtables=subprocess.check_output(["mdb-tables","-1",name])
+    dbtables=subprocess.check_output(["mdb-tables","-1",name]).decode()
     conn.autocommit=False
-    for table in dbtables.split('\n'):
+    #Read each table as a csv and use postgres Copy FROM
+    #Copy From is much faster than using inserts.
+    for table in dbtables.splitlines():
       if not table == "" :
-#       dbtabledata = subprocess.check_output(["mdb-export","-I postgres",pre,name,"DaysAbsent"])
-#      dbtabledata = subprocess.check_output(["mdb-export","-q\'","-Ipostgres",pre,name,table])
-# try as csv
-        dbtabledata = StringIO(subprocess.check_output(["mdb-export","-H","-dx23x","-X\\",pre,name,table]).replace("|","[]").replace("x23x","|"))
-      #print(dbtabledata[:200])
-#      cur.execute(dbtabledata)
-#      cur.copy_from(dbtabledata,'"y'+name[:2] + name[3:5]+'"."'+table+'"',sep="|")
-        cur.copy_expert("COPY " + '"y'+name[:2] + name[3:5]+'"."'+table+'" ' +"FROM STDIN DELIMITER '|' CSV QUOTE '\"' ESCAPE '\\'" ,dbtabledata)
+        print('Adding data for scheme {} : table {}'.format(name[:5],table))
+        dbtabledata = io.StringIO(subprocess.check_output(["mdb-export","-H","-dx23x","-X\\",pre,name,table]).decode().replace("|","[]").replace("x23x","|"))
+        cur.copy_expert("COPY " + '"'+name[:5] + '"."'+table+'" ' +"FROM STDIN DELIMITER '|' CSV QUOTE '\"' ESCAPE '\\'" ,dbtabledata)
         conn.commit()
   else: 
-    print('Missing Databasefile {} with wget module'.format(name))
-# Dump the schema for the DB
+    print('Missing Databasefile {}'.format(name))
 
-# Get the list of table names with "mdb-tables"
-#table_names = subprocess.Popen(["mdb-tables", "-1", DATABASE],
-#                               stdout=subprocess.PIPE).communicate()[0]
-#tables = table_names.splitlines()
-
-#print "BEGIN;" # start a transaction, speeds things up when importing
-#sys.stdout.flush()
-
-# Dump each table as a CSV file using "mdb-export",
-# converting " " in table names to "_" for the CSV filenames.
-#for table in tables:
-#    if table != '':
-#        subprocess.call(["mdb-export", "-I", "mysql", DATABASE, table])
-
-#print "COMMIT;" # end the transaction
-#sys.stdout.flush()
-
-
-#Close the Database
 conn.close()

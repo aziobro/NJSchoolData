@@ -1,9 +1,9 @@
 FROM ubuntu:latest
 RUN apt-get update -qq && apt-get -y --no-install-recommends install \
  mdbtools \
- python \
- python-numpy \
- python-pandas \ 
- python-psycopg2 \
- python-wget \
+ python3 \
+ python3-numpy \
+ python3-pandas \ 
+ python3-psycopg2 \
+ python3-wget \
  wget
